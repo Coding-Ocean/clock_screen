@@ -1,99 +1,37 @@
-#if 0
+#if 0//←自分でタイプしたい時はここを１にしてください
 #include"libOne.h"
 #include<time.h>
 void gmain() {
-    window(1920, 1080, full);
-    float second = 0, minute=0, hour=0;
-    float cx = width / 2;
-    float cy = height / 2;
-    float x, y, deg = 0;
-    float len = 400;
-    angleMode(DEGREES);
-    colorMode(HSV);
-    float hue = 0;
+    window(1000, 1000);
     while (notQuit) {
-        hue = map(mouseX, 0, width, 0, 360);
-        if (!isPress(KEY_SPACE)) {
-            time_t curTime = time(NULL);
-            struct tm local;
-            localtime_s(&local, &curTime);
-            second = local.tm_sec;
-            minute = local.tm_min;
-            hour = local.tm_hour;
-        }
-        else {
-            second += 10;
-            if (second >= 60) { second = 0; minute += 1; }
-            if (minute >= 60) { minute = 0; hour += 1; }
-        }
-        clear(50);
-        //円盤
-        fill(hue,50,255);
-        stroke(hue, 200, 255);
-        strokeWeight(80);
-        circle(cx, cy, (len+100) * 2 );
-        //時針
-        deg = 30 * hour + 30 * minute / 60;
-        x = cx + sin(deg) * len * 0.7f;
-        y = cy - cos(deg) * len * 0.7f;
-        stroke(hue, 200, 255);
-        strokeWeight(25);
-        line(cx, cy, x, y);
-        //分針
-        deg = 6 * minute + 6 * second / 60;
-        x = cx + sin(deg) * len;
-        y = cy - cos(deg) * len;
-        stroke(hue, 128, 255);
-        strokeWeight(20);
-        line(cx, cy, x, y);
-        //秒針
-        deg = 6 * second;
-        x = cx + sin(deg) * len;
-        y = cy - cos(deg) * len;
-        stroke(hue, 128, 128);
-        strokeWeight(5);
-        line(cx, cy, x, y);
+        clear(200);
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #else
+//現在以下のコードが有効になっています
 #include"libOne.h"
 #include<time.h>
 //秒針、分針、時針のデータ（英語で針はhand）
 struct HAND {
-    float deg, len, satulation, value, weight;
+    float deg, scale, satulation, value, weight;
 };
 //時計データ
 struct CLOCK {
-    float cx=0, cy=0, scale=1, hue=0;
+    float num, diameter, radius;
+    float sx=0, sy=0, hue=0;
     int hour=0, minute=0, second=0;
-    struct HAND hourHand   = { 0, 280, 200,  255, 30 };
-    struct HAND minuteHand = { 0, 400, 100,  255, 20 };
-    struct HAND secondHand = { 0, 400, 255,  128,  5 };
+    struct HAND hourHand   = { 0, 0.56f, 200,  255, 40 };
+    struct HAND minuteHand = { 0, 0.8f,  100,  255, 30 };
+    struct HAND secondHand = { 0, 0.8f,  255,  128, 10 };
 };
 //現在時刻をデータにセットする
 void setTime(struct CLOCK& c) {
     if (!isPress(KEY_SPACE)) {
         //時、分、秒を取得
-        time_t curTime= time(NULL);//現在時刻を取得
+        time_t stdTime= time(NULL);//標準時間を取得
         struct tm local;
-        localtime_s(&local, &curTime);//ローカル時刻に
+        localtime_s(&local, &stdTime);//ローカル時刻に
         c.hour = local.tm_hour;
         c.minute = local.tm_min;
         c.second = local.tm_sec;
@@ -101,75 +39,66 @@ void setTime(struct CLOCK& c) {
     else {
         //スペースを押すと針が速く動く
         c.second += 5;
-        if (c.second >= 60) {
-            c.second = 0;
-            c.minute += 1;
-        }
-        if (c.minute >= 60) {
-            c.minute = 0;
-            c.hour += 1;
-        }
-        if (c.hour >= 24) {
-            c.hour = 0;
-        }
+        if (c.second >= 60) { c.minute++; c.second = 0; }
+        if (c.minute >= 60) { c.hour += 1; c.minute = 0; }
+        if (c.hour >= 24) {c.hour = 0;}
     }
 }
-//針の描画
+//各針の描画で使用する関数
 void draw(const struct CLOCK& c, const struct HAND& h) {
-    strokeWeight(h.weight * c.scale);
+    strokeWeight(h.weight / c.num);
     stroke(c.hue, h.satulation, h.value);
-    float x = c.cx + sin(h.deg) * h.len * c.scale;
-    float y = c.cy - cos(h.deg) * h.len * c.scale;
-    line(c.cx, c.cy, x, y);
+    float ex = c.sx + sin(h.deg) * (c.radius-30) * h.scale;
+    float ey = c.sy - cos(h.deg) * (c.radius-30) * h.scale;
+    line(c.sx, c.sy, ex, ey);
 }
 //時計の描画
 void draw(struct CLOCK& c) {
-    //円
+    //円盤
+    noStroke();
+    fill(c.hue, 200, 255);
+    circle(c.sx, c.sy, c.diameter);
     fill(c.hue, 30, 255);
-    stroke(c.hue, 200, 255);
-    strokeWeight(60 * c.scale);
-    circle(c.cx, c.cy, 500 * 2 * c.scale);
-    //分
-    c.minuteHand.deg = (c.minute * 6) + 6 * (c.second / 60.0f);
-    draw(c, c.minuteHand);
+    circle(c.sx, c.sy, c.diameter-150/c.num);
     //時
     c.hourHand.deg = (c.hour * 30) + 30 * (c.minute / 60.0f);
     draw(c, c.hourHand);
+    //分
+    c.minuteHand.deg = (c.minute * 6) + 6 * (c.second / 60.0f);
+    draw(c, c.minuteHand);
     //秒
     c.secondHand.deg = c.second * 6;
     draw(c, c.secondHand);
     //秒針の要
-    strokeWeight(30 * c.scale);
-    point(c.cx, c.cy);
+    strokeWeight(20 / c.num);
+    point(c.sx, c.sy);
 }
 
 void gmain() {
-    window(1920, 1080, full);
+    window(1080, 1080, full);
     angleMode(DEGREES);
     colorMode(HSV);
-    int rows = 1;
-    int cols = 1;
-    float distX = width / 2;
-    float distY = height / 2;
     struct CLOCK clock;
+    clock.num = 1;
+    clock.diameter = height / clock.num;
+    clock.radius = clock.diameter / 2;
     while (notQuit) {
-        if (isTrigger(KEY_D) || isTrigger(KEY_A) ||
+        if (isPress(KEY_D) || isPress(KEY_A) ||
             isTrigger(KEY_W) || isTrigger(KEY_S)) {
-            if (isTrigger(KEY_D))cols++;
-            if (isTrigger(KEY_A) && cols > 1)cols--;
-            if (isTrigger(KEY_W))rows++;
-            if (isTrigger(KEY_S) && rows > 1)rows--;
-            distY = height / (rows + 1);
-            distX = width / (cols + 1);
-            clock.scale = (distY < distX ? distY : distX) / 1080;
+            if (isPress(KEY_D) )++clock.num;
+            if (isPress(KEY_A) && clock.num > 1)clock.num--;
+            if (isTrigger(KEY_W))clock.num++;
+            if (isTrigger(KEY_S) && clock.num > 1)clock.num--;
+            clock.diameter = height / clock.num;
+            clock.radius = clock.diameter / 2;
         }
         setTime(clock);
         clear(55);
-        for (int j = 0; j < rows; j++) {
-            clock.cy = distY * (j+1);
-            for (int i = 0; i < cols; i++) {
-                clock.cx = distX * (i+1);
-                clock.hue = 360.0f / (cols*rows) * (j*cols+i);
+        for (int j = 0; j < clock.num; j++) {
+            clock.sy = clock.radius + clock.diameter * j;
+            for (int i = 0; i < clock.num; i++) {
+                clock.sx = clock.radius + clock.diameter * i;
+                clock.hue = 360.0f / (clock.num*clock.num) * (j * clock.num + i)+25;
                 draw(clock);
             }
         }
